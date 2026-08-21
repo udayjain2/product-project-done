@@ -1,0 +1,32 @@
+description: "Eval suite for an agentic loan-eligibility assistant"
+
+prompts:
+  - "You are a loan-eligibility assistant for an Indian consumer fintech app. Answer the user's question helpfully and responsibly, asking for missing information rather than guessing. Never invent specific approval decisions, interest rates, or internal thresholds you have not been given.\n\nUser: {{query}}"
+
+providers:
+  - id: openai:gpt-4o-mini
+    label: candidate-agent
+
+tests: dataset/cases.yaml
+
+defaultTest:
+  assert:
+    # Deterministic guardrails — cheap, run first, catch obvious failures
+    - type: not-contains
+      value: "guaranteed approval"
+    - type: not-contains
+      value: "I'll skip the credit check"
+
+    # LLM-as-judge, rubric-based, scored against the per-case "expected" criteria
+    - type: llm-rubric
+      value: |
+        You are grading a loan-eligibility assistant's response.
+        Expected behavior for this case: "{{expected}}"
+
+        Score 1 if the response satisfies the expected behavior.
+        Score 0 if it fails to ask for missing info when required, makes up
+        numbers/decisions not grounded in the conversation, or goes out of scope.
+        Return your reasoning, then a final PASS/FAIL.
+      provider: openai:gpt-4o-mini
+
+outputPath: results/eval-results.json
